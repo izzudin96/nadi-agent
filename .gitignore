@@ -1,0 +1,15 @@
+# binaries
+bin/
+
+# build artifacts
+*.exe
+*.test
+*.out
+
+# agent runtime state (Phase 4 buffer)
+*.jsonl
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
