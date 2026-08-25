@@ -9,6 +9,9 @@ bin/
 # agent runtime state (Phase 4 buffer)
 *.jsonl
 
+# local config (contains secrets — use agent.yaml.example as template)
+agent.yaml
+
 # editor / OS
 .DS_Store
 .idea/
