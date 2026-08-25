@@ -13,8 +13,8 @@ collectors:
   self: true
   cpu: true
   memory: true
-  disk: false
-  network: false
+  disk: true
+  network: true
   battery: false
   temperature: false
   fan: false
