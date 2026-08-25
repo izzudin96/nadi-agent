@@ -11,8 +11,8 @@ log_level: "info"
 # Phase 2+, flip it to true.
 collectors:
   self: true
-  cpu: false
-  memory: false
+  cpu: true
+  memory: true
   disk: false
   network: false
   battery: false
