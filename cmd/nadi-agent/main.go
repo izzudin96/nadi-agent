@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/izzudin96/nadi-agent/internal/agent"
 	"github.com/izzudin96/nadi-agent/internal/config"
 )
 
@@ -28,13 +33,25 @@ func run() error {
 
 	logger := newLogger(cfg.LogLevel)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	interval := time.Duration(cfg.IntervalSeconds) * time.Second
+	jitter := time.Duration(cfg.JitterSeconds) * time.Second
+
 	logger.Info("agent starting",
 		"version", version,
 		"device_id", cfg.DeviceID,
 		"server_url", cfg.ServerURL,
 		"interval_seconds", cfg.IntervalSeconds,
+		"jitter_seconds", cfg.JitterSeconds,
 	)
 
+	if err := agent.Run(ctx, logger, interval, jitter); err != nil {
+		return err
+	}
+
+	logger.Info("agent stopped")
 	return nil
 }
 
