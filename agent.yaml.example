@@ -15,11 +15,11 @@ collectors:
   memory: true
   disk: true
   network: true
-  battery: false
+  battery: true
   temperature: false
   fan: false
   disk_smart: false
   gpu: false
   energy: false
-  top_process: false
+  top_process: true
   turn_process: false
