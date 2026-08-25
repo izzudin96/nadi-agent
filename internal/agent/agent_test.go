@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/izzudin96/nadi-agent/internal/collector"
 )
 
 func TestNextIntervalNoJitter(t *testing.T) {
@@ -29,10 +31,14 @@ func TestNextIntervalWithinBounds(t *testing.T) {
 func TestRunStopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	reg, err := collector.NewRegistry(nil, logger)
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
 
 	done := make(chan error, 1)
 	go func() {
-		done <- Run(ctx, logger, time.Millisecond, 0)
+		done <- Run(ctx, logger, time.Millisecond, 0, reg)
 	}()
 
 	time.Sleep(5 * time.Millisecond)

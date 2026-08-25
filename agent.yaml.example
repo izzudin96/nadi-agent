@@ -7,16 +7,19 @@ buffer_path: "./agent-buffer.db"
 buffer_max_size_mb: 50
 log_level: "info"
 
+# Only registered collectors may be enabled. As each collector lands in
+# Phase 2+, flip it to true.
 collectors:
-  cpu: true
-  memory: true
-  disk: true
-  network: true
-  battery: true
-  temperature: true
+  self: true
+  cpu: false
+  memory: false
+  disk: false
+  network: false
+  battery: false
+  temperature: false
   fan: false
-  disk_smart: true
-  gpu: true
+  disk_smart: false
+  gpu: false
   energy: false
-  top_process: true
-  turn_process: true
+  top_process: false
+  turn_process: false

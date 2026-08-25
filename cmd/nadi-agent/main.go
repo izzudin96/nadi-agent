@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/izzudin96/nadi-agent/internal/agent"
+	"github.com/izzudin96/nadi-agent/internal/collector"
 	"github.com/izzudin96/nadi-agent/internal/config"
 )
 
@@ -39,15 +40,21 @@ func run() error {
 	interval := time.Duration(cfg.IntervalSeconds) * time.Second
 	jitter := time.Duration(cfg.JitterSeconds) * time.Second
 
+	reg, err := collector.NewRegistry(cfg.Collectors, logger)
+	if err != nil {
+		return err
+	}
+
 	logger.Info("agent starting",
 		"version", version,
 		"device_id", cfg.DeviceID,
 		"server_url", cfg.ServerURL,
 		"interval_seconds", cfg.IntervalSeconds,
 		"jitter_seconds", cfg.JitterSeconds,
+		"collectors", reg.Names(),
 	)
 
-	if err := agent.Run(ctx, logger, interval, jitter); err != nil {
+	if err := agent.Run(ctx, logger, interval, jitter, reg); err != nil {
 		return err
 	}
 

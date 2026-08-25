@@ -5,11 +5,14 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"time"
+
+	"github.com/izzudin96/nadi-agent/internal/collector"
 )
 
-// Run fires one cycle every interval + a random jitter. It blocks until ctx
+// Run fires one cycle every interval + a random jitter. Each cycle runs the
+// registry's collectors and logs the resulting metrics. It blocks until ctx
 // is cancelled, then returns nil so the process can exit cleanly.
-func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duration) error {
+func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duration, reg *collector.Registry) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -17,6 +20,10 @@ func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duratio
 			return nil
 		case <-time.After(nextInterval(interval, jitter)):
 			logger.Debug("heartbeat tick")
+			metrics := reg.Collect(ctx)
+			for _, m := range metrics {
+				logger.Debug("metric", "name", m.Name, "value", m.Value, "unit", m.Unit)
+			}
 		}
 	}
 }
