@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 func discardLogger() *slog.Logger {
@@ -60,8 +61,11 @@ func TestCollectSkipsFailingCollector(t *testing.T) {
 	}, discardLogger())
 
 	got := reg.Collect(context.Background())
-	if len(got) != 1 || got[0].Name != "ok.x" {
-		t.Fatalf("expected only ok.x metric, got %v", got)
+	if len(got) != 2 {
+		t.Fatalf("expected ok.x + agent.collector_errors_count, got %v", got)
+	}
+	if got[0].Name != "ok.x" || got[1].Name != "agent.collector_errors_count" {
+		t.Fatalf("unexpected metrics: %v", got)
 	}
 }
 
@@ -73,6 +77,41 @@ func TestCollectOmitsNoDataCollector(t *testing.T) {
 
 	got := reg.Collect(context.Background())
 	if len(got) != 1 || got[0].Name != "ok.x" {
-		t.Fatalf("expected only ok.x metric, got %v", got)
+		t.Fatalf("expected only ok.x metric (no errors_count for ErrNoData), got %v", got)
+	}
+}
+
+type slowCollector struct {
+	name string
+}
+
+func (s *slowCollector) Name() string { return s.name }
+func (s *slowCollector) Collect(ctx context.Context) ([]Metric, error) {
+	<-ctx.Done() // respect the deadline, then report it
+	return nil, ctx.Err()
+}
+
+func TestCollectSkipsTimedOutCollector(t *testing.T) {
+	old := collectorTimeout
+	collectorTimeout = 50 * time.Millisecond
+	defer func() { collectorTimeout = old }()
+
+	reg := newRegistry(map[string]Collector{
+		"slow": &slowCollector{name: "slow"},
+		"ok":   &fakeCollector{name: "ok", metrics: []Metric{{Name: "ok.x", Value: 1}}},
+	}, discardLogger())
+
+	start := time.Now()
+	got := reg.Collect(context.Background())
+	elapsed := time.Since(start)
+
+	if len(got) != 2 {
+		t.Fatalf("expected ok.x + errors_count, got %v", got)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("cycle took %v, slow collector stalled it", elapsed)
+	}
+	if got[1].Name != "agent.collector_errors_count" || got[1].Value != 1 {
+		t.Fatalf("expected 1 collector error, got %v", got[1])
 	}
 }

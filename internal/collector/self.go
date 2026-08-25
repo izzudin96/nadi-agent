@@ -24,6 +24,6 @@ func (c *selfCollector) Name() string { return "self" }
 func (c *selfCollector) Collect(_ context.Context) ([]Metric, error) {
 	uptime := time.Since(c.start).Seconds()
 	return []Metric{
-		{Name: "agent.uptime", Value: uptime, Unit: "s"},
+		{Name: "agent.self_uptime_seconds", Value: uptime, Unit: "s"},
 	}, nil
 }
