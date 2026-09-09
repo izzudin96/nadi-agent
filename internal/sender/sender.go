@@ -42,21 +42,23 @@ func New(deviceID, apiKey, serverURL, version string, logger *slog.Logger, clien
 	}
 }
 
-// Send builds a heartbeat from the collected metrics and POSTs it. It returns
-// an error for network failures and non-2xx responses so the caller can decide
-// what to do (log now, buffer + retry in Phase 4).
-func (s *Sender) Send(ctx context.Context, metrics []collector.Metric) error {
+// Build serializes the collected metrics into a heartbeat JSON payload.
+func (s *Sender) Build(metrics []collector.Metric) ([]byte, error) {
 	heartbeat, err := s.buildHeartbeat(metrics)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	body, err := json.Marshal(heartbeat)
+	data, err := json.Marshal(heartbeat)
 	if err != nil {
-		return fmt.Errorf("marshaling heartbeat: %w", err)
+		return nil, fmt.Errorf("marshaling heartbeat: %w", err)
 	}
+	return data, nil
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.serverURL, bytes.NewReader(body))
+// SendRaw POSTs a pre-built payload. It returns an error for network failures
+// and non-2xx responses so the caller can decide what to do (buffer + retry).
+func (s *Sender) SendRaw(ctx context.Context, data []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.serverURL, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("building request: %w", err)
 	}
@@ -73,6 +75,16 @@ func (s *Sender) Send(ctx context.Context, metrics []collector.Metric) error {
 		return fmt.Errorf("server returned %s", resp.Status)
 	}
 	return nil
+}
+
+// Send builds and POSTs a heartbeat in one step. Convenience wrapper around
+// Build + SendRaw; the agent uses the two-step form so it can buffer failures.
+func (s *Sender) Send(ctx context.Context, metrics []collector.Metric) error {
+	data, err := s.Build(metrics)
+	if err != nil {
+		return err
+	}
+	return s.SendRaw(ctx, data)
 }
 
 func (s *Sender) buildHeartbeat(metrics []collector.Metric) (*payload.Heartbeat, error) {

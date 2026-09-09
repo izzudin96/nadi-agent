@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/izzudin96/nadi-agent/internal/agent"
+	"github.com/izzudin96/nadi-agent/internal/buffer"
 	"github.com/izzudin96/nadi-agent/internal/collector"
 	"github.com/izzudin96/nadi-agent/internal/config"
 	"github.com/izzudin96/nadi-agent/internal/sender"
@@ -48,6 +49,11 @@ func run() error {
 
 	snd := sender.New(cfg.DeviceID, cfg.APIKey, cfg.ServerURL, version, logger, nil)
 
+	buf, err := buffer.New(cfg.BufferPath, cfg.BufferMaxSizeMB)
+	if err != nil {
+		return err
+	}
+
 	logger.Info("agent starting",
 		"version", version,
 		"device_id", cfg.DeviceID,
@@ -55,9 +61,10 @@ func run() error {
 		"interval_seconds", cfg.IntervalSeconds,
 		"jitter_seconds", cfg.JitterSeconds,
 		"collectors", reg.Names(),
+		"buffer_path", cfg.BufferPath,
 	)
 
-	if err := agent.Run(ctx, logger, interval, jitter, reg, snd); err != nil {
+	if err := agent.Run(ctx, logger, interval, jitter, reg, snd, buf); err != nil {
 		return err
 	}
 

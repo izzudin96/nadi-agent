@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/izzudin96/nadi-agent/internal/buffer"
 	"github.com/izzudin96/nadi-agent/internal/collector"
 	"github.com/izzudin96/nadi-agent/internal/sender"
 )
@@ -44,10 +46,14 @@ func TestRunStopsOnCancel(t *testing.T) {
 	server := httptest.NewServer(nil)
 	defer server.Close()
 	snd := sender.New("test-device", "test-key", server.URL, "dev", logger, server.Client())
+	buf, err := buffer.New(filepath.Join(t.TempDir(), "b.jsonl"), 1)
+	if err != nil {
+		t.Fatalf("buffer.New() error = %v", err)
+	}
 
 	done := make(chan error, 1)
 	go func() {
-		done <- Run(ctx, logger, time.Millisecond, 0, reg, snd)
+		done <- Run(ctx, logger, time.Millisecond, 0, reg, snd, buf)
 	}()
 
 	time.Sleep(5 * time.Millisecond)
@@ -74,13 +80,17 @@ func TestRunSendsHeartbeatEachTick(t *testing.T) {
 	defer server.Close()
 
 	snd := sender.New("test-device", "test-key", server.URL, "dev", logger, server.Client())
+	buf, err := buffer.New(filepath.Join(t.TempDir(), "b.jsonl"), 1)
+	if err != nil {
+		t.Fatalf("buffer.New() error = %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	done := make(chan error, 1)
 	go func() {
-		done <- Run(ctx, logger, 10*time.Millisecond, 0, regWithSelf(logger), snd)
+		done <- Run(ctx, logger, 10*time.Millisecond, 0, regWithSelf(logger), snd, buf)
 	}()
 
 	// Allow a few ticks then stop.

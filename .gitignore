@@ -8,6 +8,7 @@ bin/
 
 # agent runtime state (Phase 4 buffer)
 *.jsonl
+*.db
 
 # local config (contains secrets — use agent.yaml.example as template)
 agent.yaml
