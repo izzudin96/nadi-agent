@@ -6,7 +6,19 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 )
+
+// collectorTimeout bounds how long a single collector may run. A collector
+// that exceeds it is treated as failed and its metrics omitted — one slow or
+// hung sensor must never stall the whole cycle. (var, not const, so tests can
+// shorten it.)
+var collectorTimeout = 2 * time.Second
+
+type collectResult struct {
+	metrics []Metric
+	err     error
+}
 
 // factory builds a collector. Collectors are constructed once at startup and
 // reused every cycle so they can keep state (e.g. timestamps for deltas).
@@ -64,21 +76,49 @@ func (r *Registry) Names() []string {
 }
 
 // Collect runs every enabled collector. A failing collector is logged and its
-// metrics omitted — it never aborts the cycle.
+// metrics omitted — it never aborts the cycle. A count of real failures is
+// reported as agent.collector_errors_count so the agent monitors itself.
 func (r *Registry) Collect(ctx context.Context) []Metric {
 	var all []Metric
+	var errorsCount float64
 	for name, c := range r.collectors {
-		metrics, err := c.Collect(ctx)
+		metrics, err := r.runCollector(ctx, c)
 		if err != nil {
 			if IsNoDataError(err) {
 				r.logger.Debug("collector returned no data", "collector", name, "err", err)
-			} else {
-				r.logger.Error("collector failed", "collector", name, "err", err)
+				continue
 			}
+			errorsCount++
+			r.logger.Error("collector failed", "collector", name, "err", err)
 			continue
 		}
 		r.logger.Debug("collector succeeded", "collector", name, "metrics", len(metrics))
 		all = append(all, metrics...)
 	}
+	if errorsCount > 0 {
+		all = append(all, Metric{Name: "agent.collector_errors_count", Value: errorsCount, Unit: "count"})
+	}
 	return all
+}
+
+// runCollector runs one collector with its own deadline. The goroutine keeps
+// the cycle from blocking on a hung collector: if the deadline hits, we return
+// the timeout error immediately and the stuck goroutine is abandoned (the
+// buffered channel lets it finish without leaking back into us).
+func (r *Registry) runCollector(ctx context.Context, c Collector) ([]Metric, error) {
+	cctx, cancel := context.WithTimeout(ctx, collectorTimeout)
+	defer cancel()
+
+	done := make(chan collectResult, 1)
+	go func() {
+		metrics, err := c.Collect(cctx)
+		done <- collectResult{metrics: metrics, err: err}
+	}()
+
+	select {
+	case res := <-done:
+		return res.metrics, res.err
+	case <-cctx.Done():
+		return nil, cctx.Err()
+	}
 }

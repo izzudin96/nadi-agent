@@ -11,15 +11,15 @@ log_level: "info"
 # Phase 2+, flip it to true.
 collectors:
   self: true
-  cpu: false
-  memory: false
-  disk: false
-  network: false
-  battery: false
+  cpu: true
+  memory: true
+  disk: true
+  network: true
+  battery: true
   temperature: false
   fan: false
   disk_smart: false
   gpu: false
   energy: false
-  top_process: false
+  top_process: true
   turn_process: false

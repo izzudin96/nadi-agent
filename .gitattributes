@@ -1,0 +1,3 @@
+# Normalize line endings to LF on every OS. gofmt (and go build) requires LF;
+# without this, Windows checkouts get CRLF and gofmt flags every file.
+* text=auto eol=lf
