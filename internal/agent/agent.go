@@ -7,22 +7,29 @@ import (
 	"time"
 
 	"github.com/izzudin96/nadi-agent/internal/collector"
+	"github.com/izzudin96/nadi-agent/internal/sender"
 )
 
 // Run fires one cycle every interval + a random jitter. Each cycle runs the
-// registry's collectors and logs the resulting metrics. It blocks until ctx
-// is cancelled, then returns nil so the process can exit cleanly.
-func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duration, reg *collector.Registry) error {
+// registry's collectors, then sends the resulting metrics as a heartbeat. It
+// blocks until ctx is cancelled, then returns nil so the process can exit
+// cleanly.
+func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duration, reg *collector.Registry, snd *sender.Sender) error {
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Info("agent stopping")
 			return nil
 		case <-time.After(nextInterval(interval, jitter)):
-			logger.Debug("heartbeat tick")
 			metrics := reg.Collect(ctx)
 			for _, m := range metrics {
 				logger.Debug("metric", "name", m.Name, "value", m.Value, "unit", m.Unit)
+			}
+			if err := snd.Send(ctx, metrics); err != nil {
+				// Phase 4 replaces this log with buffering + backoff.
+				logger.Error("heartbeat send failed", "err", err, "metrics", len(metrics))
+			} else {
+				logger.Debug("heartbeat sent", "metrics", len(metrics))
 			}
 		}
 	}
