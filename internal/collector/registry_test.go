@@ -81,6 +81,19 @@ func TestCollectOmitsNoDataCollector(t *testing.T) {
 	}
 }
 
+func TestCollectIgnoresContextCancellation(t *testing.T) {
+	reg := newRegistry(map[string]Collector{
+		"cancelled": &fakeCollector{name: "cancelled", err: context.Canceled},
+		"ok":        &fakeCollector{name: "ok", metrics: []Metric{{Name: "ok.x", Value: 1}}},
+	}, discardLogger())
+
+	got := reg.Collect(context.Background())
+	// Cancellation is not an error: no errors_count metric, just ok.x.
+	if len(got) != 1 || got[0].Name != "ok.x" {
+		t.Fatalf("expected only ok.x (cancellation not counted as error), got %v", got)
+	}
+}
+
 type slowCollector struct {
 	name string
 }

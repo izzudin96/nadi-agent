@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -86,6 +87,12 @@ func (r *Registry) Collect(ctx context.Context) []Metric {
 		if err != nil {
 			if IsNoDataError(err) {
 				r.logger.Debug("collector returned no data", "collector", name, "err", err)
+				continue
+			}
+			if errors.Is(err, context.Canceled) {
+				// The cycle context was cancelled (graceful shutdown) while the
+				// collector was mid-run. Not a failure — just stop quietly.
+				r.logger.Debug("collector cancelled during shutdown", "collector", name)
 				continue
 			}
 			errorsCount++
