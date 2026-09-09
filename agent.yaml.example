@@ -22,4 +22,4 @@ collectors:
   gpu: false
   energy: false
   top_process: true
-  turn_process: false
+  turn_process: true

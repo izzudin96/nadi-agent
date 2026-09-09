@@ -55,6 +55,17 @@ func (c *turnCollector) Collect(ctx context.Context) ([]Metric, error) {
 		metrics = append(metrics, Metric{Name: "turn.process_mem_bytes", Value: float64(rss), Unit: "bytes"})
 	}
 
+	// coturn stats (sessions + relayed bytes) come from its CLI port. Best-
+	// effort: if the CLI is unreachable or the output is unrecognized, omit.
+	if sessions, bytes, ok := readCoturnStats(ctx, turnStatsAddr); ok {
+		metrics = append(metrics,
+			Metric{Name: "turn.active_sessions", Value: sessions, Unit: "count"},
+			Metric{Name: "turn.bytes_relayed", Value: bytes, Unit: "bytes"},
+		)
+	} else {
+		c.logger.Debug("coturn stats unavailable", "addr", turnStatsAddr)
+	}
+
 	return metrics, nil
 }
 
