@@ -17,10 +17,10 @@ import (
 )
 
 type recorder struct {
-	mu        sync.Mutex
-	received  []payload.Heartbeat
-	fail      bool
-	delay     time.Duration
+	mu       sync.Mutex
+	received []payload.Heartbeat
+	fail     bool
+	delay    time.Duration
 }
 
 func main() {

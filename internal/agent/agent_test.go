@@ -4,10 +4,14 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/izzudin96/nadi-agent/internal/collector"
+	"github.com/izzudin96/nadi-agent/internal/sender"
 )
 
 func TestNextIntervalNoJitter(t *testing.T) {
@@ -36,9 +40,14 @@ func TestRunStopsOnCancel(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 
+	// Hermetic send target so the loop can POST without touching the network.
+	server := httptest.NewServer(nil)
+	defer server.Close()
+	snd := sender.New("test-device", "test-key", server.URL, "dev", logger, server.Client())
+
 	done := make(chan error, 1)
 	go func() {
-		done <- Run(ctx, logger, time.Millisecond, 0, reg)
+		done <- Run(ctx, logger, time.Millisecond, 0, reg, snd)
 	}()
 
 	time.Sleep(5 * time.Millisecond)
@@ -52,4 +61,42 @@ func TestRunStopsOnCancel(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Run() did not return after context cancel")
 	}
+}
+
+func TestRunSendsHeartbeatEachTick(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	var hits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	snd := sender.New("test-device", "test-key", server.URL, "dev", logger, server.Client())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, logger, 10*time.Millisecond, 0, regWithSelf(logger), snd)
+	}()
+
+	// Allow a few ticks then stop.
+	time.Sleep(60 * time.Millisecond)
+	cancel()
+	<-done
+
+	if got := atomic.LoadInt32(&hits); got < 2 {
+		t.Errorf("expected at least 2 heartbeats, got %d", got)
+	}
+}
+
+func regWithSelf(logger *slog.Logger) *collector.Registry {
+	reg, err := collector.NewRegistry(map[string]bool{"self": true}, logger)
+	if err != nil {
+		panic(err)
+	}
+	return reg
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/izzudin96/nadi-agent/internal/agent"
 	"github.com/izzudin96/nadi-agent/internal/collector"
 	"github.com/izzudin96/nadi-agent/internal/config"
+	"github.com/izzudin96/nadi-agent/internal/sender"
 )
 
 var version = "dev"
@@ -45,6 +46,8 @@ func run() error {
 		return err
 	}
 
+	snd := sender.New(cfg.DeviceID, cfg.APIKey, cfg.ServerURL, version, logger, nil)
+
 	logger.Info("agent starting",
 		"version", version,
 		"device_id", cfg.DeviceID,
@@ -54,7 +57,7 @@ func run() error {
 		"collectors", reg.Names(),
 	)
 
-	if err := agent.Run(ctx, logger, interval, jitter, reg); err != nil {
+	if err := agent.Run(ctx, logger, interval, jitter, reg, snd); err != nil {
 		return err
 	}
 
