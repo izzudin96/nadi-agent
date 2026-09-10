@@ -1,10 +1,9 @@
 package collector
 
 import (
+	"bufio"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -17,8 +16,10 @@ import (
 const turnStatsAddr = "127.0.0.1:5766"
 
 // readCoturnStats connects to coturn's CLI, sends `stats`, and parses the
-// active-session count and relayed byte total. Any failure returns ok=false so
-// the caller omits the metrics (best-effort, like other privileged collectors).
+// active-session count and relayed byte total. It returns as soon as both
+// values are seen, rather than draining to the read deadline — coturn keeps
+// the connection open at a prompt, so a plain ReadAll would burn the full 2s
+// deadline every cycle. Any failure returns ok=false (best-effort).
 func readCoturnStats(ctx context.Context, addr string) (sessions, bytes float64, ok bool) {
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", addr)
@@ -32,17 +33,18 @@ func readCoturnStats(ctx context.Context, addr string) (sessions, bytes float64,
 		return 0, 0, false
 	}
 
-	data, err := io.ReadAll(conn)
-	if err != nil {
-		// coturn keeps the connection open at a prompt, so we stop at the read
-		// deadline rather than EOF. Accept timeout and EOF; reject real errors.
-		var ne net.Error
-		if !errors.As(err, &ne) || !ne.Timeout() {
-			return 0, 0, false
+	scanner := bufio.NewScanner(conn)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	var buf strings.Builder
+	for scanner.Scan() {
+		buf.WriteString(scanner.Text())
+		buf.WriteByte('\n')
+		if sessions, bytes, ok := parseCoturnStats(buf.String()); ok {
+			return sessions, bytes, true
 		}
 	}
-
-	return parseCoturnStats(string(data))
+	// EOF or deadline: return whatever a final parse finds (possibly nothing).
+	return parseCoturnStats(buf.String())
 }
 
 // parseCoturnStats extracts the session count and relayed-byte total from
