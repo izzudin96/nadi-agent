@@ -26,11 +26,16 @@ type Sender struct {
 	client    *http.Client
 }
 
+// defaultTimeout bounds a single heartbeat POST. Without it, a server that
+// accepts the connection but never responds would block the whole agent loop
+// (http.DefaultClient has no timeout).
+const defaultTimeout = 30 * time.Second
+
 // New builds a Sender. client is injected so tests can point it at a mock
-// server; pass http.DefaultClient in production.
+// server; pass nil to get a client with a sane timeout.
 func New(deviceID, apiKey, serverURL, version string, logger *slog.Logger, client *http.Client) *Sender {
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: defaultTimeout}
 	}
 	return &Sender{
 		deviceID:  deviceID,

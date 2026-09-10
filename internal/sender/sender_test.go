@@ -78,6 +78,13 @@ func TestSendNon2xxIsError(t *testing.T) {
 	}
 }
 
+func TestDefaultClientHasTimeout(t *testing.T) {
+	s := New("d", "k", "http://example.com", "dev", discardLogger(), nil)
+	if s.client.Timeout <= 0 {
+		t.Fatalf("default client timeout = %v, want > 0", s.client.Timeout)
+	}
+}
+
 func TestSendNetworkError(t *testing.T) {
 	// URL that refuses connections.
 	s := New("d", "k", "http://127.0.0.1:1", "dev", discardLogger(), http.DefaultClient)
