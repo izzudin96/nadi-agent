@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the nadi-agent on a macOS dev machine.
+
+  Install:
+    mkdir -p ~/Library/LaunchAgents
+    cp deploy/com.izzudin96.nadi-agent.plist ~/Library/LaunchAgents/
+    # create the config (chmod 600; it holds the api key):
+    mkdir -p "$HOME/Library/Application Support/nadi-agent"
+    vi "$HOME/Library/Application Support/nadi-agent/agent.yaml"
+    launchctl load ~/Library/LaunchAgents/com.izzudin96.nadi-agent.plist
+
+  Note: launchd does not expand ~ in paths, so set the full path to your home
+  directory below. The default agent.yaml.example points buffer_path at the
+  current directory — set it to an absolute path here for a daemon.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.izzudin96.nadi-agent</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/nadi-agent</string>
+		<string>--config</string>
+		<string>/Users/USERNAME/Library/Application Support/nadi-agent/agent.yaml</string>
+	</array>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/nadi-agent.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/tmp/nadi-agent.log</string>
+</dict>
+</plist>

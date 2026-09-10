@@ -1,0 +1,12 @@
+# Allow the nadi-agent service user to run smartctl (and nothing else) without
+# a password, for the disk.smart collector. Install to /etc/sudoers.d/.
+#
+# NOTE: the current disk_smart collector invokes `smartctl` directly (no sudo),
+# so the simpler equivalent is to grant the smartctl binary the needed
+# capability instead:
+#
+#     sudo setcap cap_sys_rawio+ep /usr/sbin/smartctl
+#
+# Use this sudoers rule only if the agent is changed to shell out via
+# `sudo smartctl`. See spec §5.4 and deploy/README.md.
+nadi-agent ALL=(root) NOPASSWD: /usr/sbin/smartctl

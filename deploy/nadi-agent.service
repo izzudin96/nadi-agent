@@ -1,0 +1,27 @@
+[Unit]
+Description=Nadi monitoring agent
+Documentation=https://github.com/izzudin96/nadi-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nadi-agent
+Group=nadi-agent
+ExecStart=/usr/local/bin/nadi-agent --config /etc/nadi-agent/agent.yaml
+Restart=always
+RestartSec=5
+
+# Security hardening. The agent only makes outbound HTTPS requests, reads
+# /proc and /sys, and appends to its local buffer — it needs no privileges.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nadi-agent
+PrivateTmp=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
