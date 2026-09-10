@@ -76,7 +76,7 @@ type smartctlOutput struct {
 	} `json:"smart_status"`
 	ATAAttributes struct {
 		Table []struct {
-			ID  int    `json:"id"`
+			ID  int `json:"id"`
 			Raw struct {
 				Value float64 `json:"value"`
 			} `json:"raw"`
