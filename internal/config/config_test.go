@@ -98,3 +98,40 @@ func TestLoadMissingFile(t *testing.T) {
 		t.Fatal("Load() expected error for missing file, got nil")
 	}
 }
+
+func TestLoadAppliesBufferDefaults(t *testing.T) {
+	// A minimal config with no buffer fields should still buffer safely.
+	path := writeConfig(t, `
+device_id: "x"
+server_url: "https://monitor.example.com/api/heartbeat"
+api_key: "secret"
+interval_seconds: 15
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.BufferPath != "agent-buffer.db" {
+		t.Errorf("BufferPath = %q, want default", cfg.BufferPath)
+	}
+	if cfg.BufferMaxSizeMB != 50 {
+		t.Errorf("BufferMaxSizeMB = %d, want 50", cfg.BufferMaxSizeMB)
+	}
+	if cfg.LogLevel != "info" {
+		t.Errorf("LogLevel = %q, want info", cfg.LogLevel)
+	}
+}
+
+func TestLoadRejectsNegativeBufferSize(t *testing.T) {
+	path := writeConfig(t, `
+device_id: "x"
+server_url: "https://monitor.example.com/api/heartbeat"
+api_key: "secret"
+interval_seconds: 15
+buffer_max_size_mb: -1
+`)
+	_, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "buffer_max_size_mb") {
+		t.Fatalf("expected buffer_max_size_mb error, got: %v", err)
+	}
+}

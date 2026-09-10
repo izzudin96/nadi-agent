@@ -32,11 +32,26 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config %s: %w", path, err)
 	}
+	cfg.applyDefaults()
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %s: %w", path, err)
 	}
 	return &cfg, nil
+}
+
+// applyDefaults fills in optional fields so a minimal config still buffers
+// safely (a zero buffer_max_size_mb would silently disable buffering).
+func (c *Config) applyDefaults() {
+	if c.BufferPath == "" {
+		c.BufferPath = "agent-buffer.db"
+	}
+	if c.BufferMaxSizeMB == 0 {
+		c.BufferMaxSizeMB = 50
+	}
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	}
 }
 
 func (c *Config) Validate() error {
@@ -64,6 +79,9 @@ func (c *Config) Validate() error {
 	}
 	if c.JitterSeconds < 0 {
 		return errors.New("jitter_seconds must be >= 0")
+	}
+	if c.BufferMaxSizeMB < 0 {
+		return errors.New("buffer_max_size_mb must be >= 0")
 	}
 	return nil
 }
