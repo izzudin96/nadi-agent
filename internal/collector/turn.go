@@ -96,6 +96,7 @@ func (c *turnCollector) processCPUPercent(ctx context.Context, pid int32) (float
 		return 0, false
 	}
 
+	start := time.Now()
 	select {
 	case <-time.After(turnCPUWindow):
 	case <-ctx.Done():
@@ -107,7 +108,11 @@ func (c *turnCollector) processCPUPercent(ctx context.Context, pid int32) (float
 		return 0, false
 	}
 
-	pct := (t2.Total() - t1.Total()) / turnCPUWindow.Seconds() * 100
+	wall := time.Since(start).Seconds()
+	if wall <= 0 {
+		return 0, false
+	}
+	pct := (t2.Total() - t1.Total()) / wall * 100
 	if pct < 0 {
 		pct = 0
 	}

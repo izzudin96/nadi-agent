@@ -37,6 +37,7 @@ func (c *topProcessCollector) Collect(ctx context.Context) ([]Metric, error) {
 		return nil, err
 	}
 
+	start := time.Now()
 	select {
 	case <-time.After(topProcessSampleEvery):
 	case <-ctx.Done():
@@ -48,7 +49,13 @@ func (c *topProcessCollector) Collect(ctx context.Context) ([]Metric, error) {
 		return nil, err
 	}
 
-	wall := topProcessSampleEvery.Seconds()
+	// Measure the actual elapsed time between samples rather than assuming the
+	// sleep was exactly topProcessSampleEvery (scheduling adds a little).
+	wall := time.Since(start).Seconds()
+	if wall <= 0 {
+		wall = topProcessSampleEvery.Seconds()
+	}
+
 	type entry struct {
 		name string
 		pid  int32
