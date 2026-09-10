@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -30,6 +31,9 @@ func (c *cpuCollector) Collect(ctx context.Context) ([]Metric, error) {
 	usage, err := cpu.PercentWithContext(ctx, 0, false)
 	if err != nil {
 		return nil, err
+	}
+	if len(usage) == 0 {
+		return nil, errors.New("no CPU usage data returned")
 	}
 
 	metrics := []Metric{

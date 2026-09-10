@@ -13,7 +13,7 @@ func init() {
 
 type memoryCollector struct{}
 
-func NewMemoryCollector(logger *slog.Logger) Collector { return &memoryCollector{} }
+func NewMemoryCollector(_ *slog.Logger) Collector { return &memoryCollector{} }
 
 func (c *memoryCollector) Name() string { return "memory" }
 

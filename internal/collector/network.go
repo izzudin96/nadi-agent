@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/net"
@@ -91,12 +92,19 @@ func (c *networkCollector) publicIPChanged(ctx context.Context) (float64, bool) 
 		return 0, false
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.logger.Debug("public IP check failed", "status", resp.StatusCode)
+		return 0, false
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return 0, false
 	}
-	ip := string(body)
+	ip := strings.TrimSpace(string(body))
+	if ip == "" {
+		return 0, false
+	}
 
 	changed := 0.0
 	if c.lastPublicIP != "" && ip != c.lastPublicIP {

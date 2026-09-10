@@ -27,7 +27,7 @@ var virtualMountPrefixes = []string{"/dev", "/proc", "/sys", "/System/Volumes"}
 
 type diskCollector struct{}
 
-func NewDiskCollector(logger *slog.Logger) Collector { return &diskCollector{} }
+func NewDiskCollector(_ *slog.Logger) Collector { return &diskCollector{} }
 
 func (c *diskCollector) Name() string { return "disk" }
 

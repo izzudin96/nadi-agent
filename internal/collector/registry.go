@@ -79,6 +79,11 @@ func (r *Registry) Names() []string {
 // Collect runs every enabled collector. A failing collector is logged and its
 // metrics omitted — it never aborts the cycle. A count of real failures is
 // reported as agent.collector_errors_count so the agent monitors itself.
+//
+// Collectors run sequentially, not concurrently (spec §7.1 said concurrent):
+// several collectors (network, energy, cpu) hold state that isn't mutex-
+// protected, and the per-collector timeout already bounds the cycle, so
+// sequential keeps the code simple and safe. Revisit if cycle latency matters.
 func (r *Registry) Collect(ctx context.Context) []Metric {
 	var all []Metric
 	var errorsCount float64
