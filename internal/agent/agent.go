@@ -22,6 +22,12 @@ import (
 func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duration, reg *collector.Registry, snd *sender.Sender, buf *buffer.Buffer) error {
 	r := &retrier{backoff: backoff.New(time.Second, interval), logger: logger}
 
+	// A persistent tick timer, reset only after a collection tick. Using
+	// time.After here instead would re-arm the timer on every retry, delaying
+	// collection during an outage (retries would keep resetting the tick).
+	ticker := time.NewTimer(nextInterval(interval, jitter))
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -29,7 +35,7 @@ func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duratio
 			logger.Info("agent stopping")
 			return nil
 
-		case <-time.After(nextInterval(interval, jitter)):
+		case <-ticker.C:
 			metrics := reg.Collect(ctx)
 			for _, m := range metrics {
 				logger.Debug("metric", "name", m.Name, "value", m.Value, "unit", m.Unit)
@@ -38,6 +44,7 @@ func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duratio
 			data, err := snd.Build(metrics)
 			if err != nil {
 				logger.Error("building heartbeat", "err", err)
+				ticker.Reset(nextInterval(interval, jitter))
 				continue
 			}
 
@@ -54,6 +61,8 @@ func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duratio
 				r.reset()
 			}
 
+			ticker.Reset(nextInterval(interval, jitter))
+
 		case <-r.C():
 			r.fired()
 			flushBuffer(ctx, snd, buf, logger)
@@ -69,7 +78,7 @@ func Run(ctx context.Context, logger *slog.Logger, interval, jitter time.Duratio
 
 // flushBuffer sends buffered payloads oldest-first until one fails or the
 // buffer empties, then compacts the file to drop the sent entries.
-func flushBuffer(ctx context.Context, snd *sender.Sender, buf *buffer.Buffer, logger *slog.Logger) int {
+func flushBuffer(ctx context.Context, snd *sender.Sender, buf *buffer.Buffer, logger *slog.Logger) {
 	flushed := 0
 	for {
 		oldest, ok := buf.Peek()
@@ -88,7 +97,6 @@ func flushBuffer(ctx context.Context, snd *sender.Sender, buf *buffer.Buffer, lo
 		}
 		logger.Debug("flushed buffered heartbeats", "count", flushed)
 	}
-	return flushed
 }
 
 // nextInterval returns interval plus a random jitter in [0, jitter).
