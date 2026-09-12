@@ -2,6 +2,11 @@
 
 Device agent for Nadi: collects system metrics and pushes heartbeats to the nadi-server.
 
+## Deployment
+
+See [`deploy/README.md`](deploy/README.md) for installing the agent as a systemd
+service (Linux) or launchd agent (macOS).
+
 ## Development
 
 Prerequisites: Go 1.22+ (see `go.mod`), GNU make.
