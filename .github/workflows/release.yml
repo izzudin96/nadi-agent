@@ -26,7 +26,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build
+      - name: Build and package
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -36,7 +36,13 @@ jobs:
           if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
           go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" \
             -o "nadi-agent${ext}" ./cmd/nadi-agent
-          tar -czf "nadi-agent-$GOOS-$GOARCH.tar.gz" "nadi-agent${ext}"
+          files=("nadi-agent${ext}" agent.yaml.example)
+          if [ "$GOOS" = "linux" ]; then
+            files+=(deploy/nadi-agent.service deploy/nadi-agent.sudoers)
+          elif [ "$GOOS" = "darwin" ]; then
+            files+=(deploy/com.izzudin96.nadi-agent.plist)
+          fi
+          tar -czf "nadi-agent-$GOOS-$GOARCH.tar.gz" "${files[@]}"
 
       - uses: actions/upload-artifact@v4
         with:
