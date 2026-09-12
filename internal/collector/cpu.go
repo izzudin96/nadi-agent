@@ -21,23 +21,32 @@ func NewCPUCollector(logger *slog.Logger) Collector {
 	c := &cpuCollector{logger: logger}
 	// cpu.Percent reports usage since the previous call, so prime the delta
 	// baseline at construction — otherwise the first tick reads 0.
-	_, _ = cpu.Percent(0, false)
+	_, _ = cpu.Percent(0, true)
 	return c
 }
 
 func (c *cpuCollector) Name() string { return "cpu" }
 
 func (c *cpuCollector) Collect(ctx context.Context) ([]Metric, error) {
-	usage, err := cpu.PercentWithContext(ctx, 0, false)
+	// Sample per logical core so we can report both the average across cores
+	// (0-100%) and the total capacity used (0 to N*100%, e.g. 800% on 8 cores).
+	per, err := cpu.PercentWithContext(ctx, 0, true)
 	if err != nil {
 		return nil, err
 	}
-	if len(usage) == 0 {
+	if len(per) == 0 {
 		return nil, errors.New("no CPU usage data returned")
 	}
 
+	var total float64
+	for _, v := range per {
+		total += v
+	}
+
 	metrics := []Metric{
-		{Name: "cpu.usage_percent", Value: usage[0], Unit: "%"},
+		{Name: "cpu.usage_percent", Value: total / float64(len(per)), Unit: "%"},
+		{Name: "cpu.usage_percent_total", Value: total, Unit: "%"},
+		{Name: "cpu.cores", Value: float64(len(per)), Unit: "count"},
 	}
 
 	// Load average is Linux/macOS only. On unsupported systems gopsutil
