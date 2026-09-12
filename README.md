@@ -9,7 +9,7 @@ service (Linux) or launchd agent (macOS).
 
 ## Development
 
-Prerequisites: Go 1.22+ (see `go.mod`), GNU make.
+Prerequisites: Go 1.27+ (see `go.mod`), GNU make.
 
 ```sh
 make build        # builds bin/nadi-agent for the current OS/arch
