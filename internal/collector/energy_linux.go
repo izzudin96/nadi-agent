@@ -37,12 +37,12 @@ func energyMetrics(c *energyCollector, ctx context.Context) ([]Metric, error) {
 	}
 
 	dt := now.Sub(c.prevTime).Seconds()
-	c.prevEnergy, c.prevTime = energy, now
 	if dt <= 0 {
 		return nil, fmt.Errorf("zero elapsed time between RAPL samples")
 	}
 
 	watts := (energy - c.prevEnergy) / 1e6 / dt // microjoules → joules → watts
+	c.prevEnergy, c.prevTime = energy, now
 	if watts < 0 {
 		watts = 0
 	}

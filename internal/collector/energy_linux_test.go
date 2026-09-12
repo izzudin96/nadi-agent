@@ -4,6 +4,7 @@ package collector
 
 import (
 	"context"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,8 +42,9 @@ func TestEnergyRAPL(t *testing.T) {
 	if len(metrics) != 1 || metrics[0].Name != "energy.package_power_watts" {
 		t.Fatalf("unexpected metrics: %v", metrics)
 	}
-	// 2,000,000 µJ over 1s = 2 W.
-	if metrics[0].Value != 2 {
-		t.Fatalf("watts = %v, want 2", metrics[0].Value)
+	// 2,000,000 µJ over ~1s = ~2 W. The elapsed time is wall-clock, so allow
+	// a small tolerance for the real time between the two reads.
+	if math.Abs(metrics[0].Value-2) > 0.01 {
+		t.Fatalf("watts = %v, want ~2", metrics[0].Value)
 	}
 }
